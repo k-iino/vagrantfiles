@@ -1,0 +1,12 @@
+# Vagrant
+.vagrant
+*.box
+
+# Build
+build/
+
+# Emacs
+*~
+
+# vi
+*.swp
