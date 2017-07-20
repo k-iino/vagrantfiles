@@ -1,0 +1,147 @@
+# coding: utf-8
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "debian/jessie64"
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # NOTE: This will enable public access to the opened port
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine and only allow access
+  # via 127.0.0.1 to disable public access
+  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = true
+ 
+    # Customize the amount of memory on the VM:
+    vb.memory = "2048"
+  end
+  #
+  # View the documentation for the provider you are using for more
+  # information on available options.
+
+  # Define a Vagrant Push strategy for pushing to Atlas. Other push strategies
+  # such as FTP and Heroku are also available. See the documentation at
+  # https://docs.vagrantup.com/v2/push/atlas.html for more information.
+  # config.push.define "atlas" do |push|
+  #   push.app = "YOUR_ATLAS_USERNAME/YOUR_APPLICATION_NAME"
+  # end
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get update
+
+    #
+    # Xorg
+    #
+    sudo apt-get install -y xorg
+    # Window manager をここで導入しない。
+    # 実際に使うマシンで適宜用途に合ったものをインストールすること。
+
+    # 以下の対策
+    # GConf-WARNING **: Client failed to connect to the D-BUS daemon:
+    sudo apt-get install -y gconf2
+    # 以下のエラー対策
+    # Couldn't connect to accessibility bus: Failed to connect to socket /tmp/dbus-**********: 接続を拒否されました
+    echo 'export NO_AT_BRIDGE=1' >> /home/vagrant/.bash_profile
+
+    #
+    # Setup Japanese configuration.
+    #
+    sudo aptitude -y install task-japanese
+
+    # Keyboard layout.
+    # US 配列キーボードを使っているので設定の必要なし.
+    #sudo localectl set-keymap jp106
+
+    # Locale.
+    # 日本語のロケールを生成するが、設定は英語のままでよい.
+    # 参考
+    #   - Debian 8 Jessie : システムの文字コードを設定する ： Server World - https://goo.gl/WRNARo
+    cat /etc/locale.gen \
+       | sed -e 's/^# *ja_JP.UTF-8/ja_JP.UTF-8/' \
+       > /tmp/locale.gen.new
+    sudo mv /tmp/locale.gen.new /etc/locale.gen
+    sudo locale-gen
+    #sudo localectl set-locale LANG=ja_JP.UTF-8
+
+    # Timezone.
+    sudo timedatectl set-timezone Asia/Tokyo
+
+    echo "Setup Japanese configuration was finished."
+
+    #
+    # Network configuration
+    #
+    # config.vm.network "public_network" を有効にしたとき、
+    # vagrant up 中に "SSH auth method: private key" で処理が止まる.
+    # Ubuntu16, Debian8 では恐らく DHCP 周りの問題がある.
+    # 以下はその対策処理だが、これで設定しても失敗する場合がある（初回のみ?）.
+    #
+    # 参考
+    #  - vagrantでubuntuの起動が異常に遅い – bgbgbg - https://goo.gl/K0MqyV
+    cat /etc/network/interfaces \
+        | sed 's%^\\(source /etc/network/interfaces.d/\\)%# \\1%g' \
+        > /tmp/interfaces.tmp 
+    sudo mv /tmp/interfaces.tmp /etc/network/interfaces
+
+    echo "Network configuration was finished."
+   
+    #
+    # Clean up.
+    #
+    sudo rm -rf /var/log/* 
+    sudo rm -rf /tmp/* 
+    sudo apt-get clean
+    # Writing zero bits to unused volume for a package.
+    sudo dd if=/dev/zero of=zero bs=4k
+    sudo rm zero
+    history -c
+
+    echo "Clean up was finished."
+
+  SHELL
+end
