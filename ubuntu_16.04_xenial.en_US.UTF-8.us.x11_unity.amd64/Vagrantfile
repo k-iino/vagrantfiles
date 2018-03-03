@@ -1,0 +1,54 @@
+# coding: utf-8
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# Ubuntu16.04 LTS with a desktop environment.
+#
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/xenial64"
+
+  # vagant-vbguest
+  # Ubuntu16.04LTS では最新バージョンの VirtualBox Guest Additions では正しく動作しない場合がある.
+  # そのため、動作確認したバージョンを利用する.
+  vbguest_version = '5.1.30'
+  config.vbguest.iso_path = "http://download.virtualbox.org/virtualbox/#{vbguest_version}/VBoxGuestAdditions_#{vbguest_version}.iso" 
+  config.vbguest.auto_reboot = true
+
+  # Shared directory
+  config.vm.synced_folder "./", "/home/vagrant/shared_dir"
+
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = false
+  
+    # Customize the amount of memory on the VM:
+    vb.memory = "2048"
+    
+    # Connection Timeout する問題の対処
+    # 参考
+    #   - Vagrant で bento/ubuntu-16.04 を vagrant up すると Connection timeout になってしまう - Qiita - https://goo.gl/UssYY9
+    #   - Timeout error during `vagrant up` · Issue #682 · chef/bento - https://goo.gl/DVcE6Z
+    vb.customize ["modifyvm", :id, "--cableconnected1", "on"]
+  end
+  
+  config.vm.provision "shell", inline: <<-SHELL
+    timedatectl set-timezone Asia/Tokyo
+ 
+    apt-get update -y
+    apt-get upgrade -y
+    
+    # Desktop environment.
+    apt-get install -y ubuntu-desktop
+
+    #
+    # Clean up.
+    #
+    sudo rm -rf /var/log/*
+    sudo rm -rf /tmp/*
+    sudo apt-get clean
+    # Writing zero bits to unused volume for a package.
+    sudo dd if=/dev/zero of=zero bs=4k
+    sudo rm zero
+    history -c
+  SHELL
+end
